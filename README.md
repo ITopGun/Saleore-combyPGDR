@@ -19,7 +19,6 @@
 - [Installation](#installation)
 - [Documentation](#documentation)
 - [Demo](#demo)
-- [Your feedback](#your-feedback)
 - [License](#license)
 
 ## What makes Saleor special?
