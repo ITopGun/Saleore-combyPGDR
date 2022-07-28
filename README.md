@@ -83,12 +83,6 @@ Or launch the demo on a free Heroku instance.
 
 Login credentials: `admin@example.com`/`admin`
 
-## Your feedback
-
-Do you use Saleor as an e-commerce platform?
-Fill out this short survey and help us grow. It will take just a minute, but mean a lot!
-
-[Take a survey](https://mirumee.typeform.com/to/sOIJbJ)
 
 ## License
 
