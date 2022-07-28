@@ -19,7 +19,6 @@
 - [Installation](#installation)
 - [Documentation](#documentation)
 - [Demo](#demo)
-- [Contributing](#contributing)
 - [Your feedback](#your-feedback)
 - [License](#license)
 
