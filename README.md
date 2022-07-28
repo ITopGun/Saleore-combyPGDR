@@ -15,14 +15,6 @@
 <br>
 
 <div align="center">
-   <a href="https://saleor.io/blog/">Blog</a>
-  <span> | </span>
-  <a href="https://saleor.typeform.com/to/JTJK0Nou">Subscribe to newsletter</a>
-</div>
-
-<br>
-
-<div align="center">
   <a href="http://codecov.io/github/saleor/saleor?branch=master">
     <img src="http://codecov.io/github/saleor/saleor/coverage.svg?branch=master" alt="Codecov" />
   </a>
