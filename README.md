@@ -60,25 +60,13 @@ The `main` branch is the development version of Saleor and it may be unstable. T
 
 Saleor documentation is available here: [docs.saleor.io](https://docs.saleor.io)
 
-To contribute, please see the [`saleor/saleor-docs` repository](https://github.com/saleor/saleor-docs/).
-
-## Saleor Platform
-
-The easiest way to run all components of Saleor (API, storefront, and dashboard) together on your local machine is to use the [saleor-platform](https://github.com/saleor/saleor-platform) project. Go to that repository for instructions on how to use it.
-
-[View saleor-platform](https://github.com/saleor/saleor-platform)
-
 ## Storefront
 
 An open-source storefront in React.js with Next.js. Built for Headless Commerce, using a modern stack with TypeScript, GraphQL, Apollo, and Tailwind CSS.
 
-[React Storefront Repository](https://github.com/saleor/react-storefront)
-
 [View Storefront Demo](https://reactstorefront.vercel.app/)
 
 ## Dashboard
-
-For the dashboard go to the [saleor-dashboard](https://github.com/saleor/saleor-dashboard) repository.
 
 [View dashboard demo](https://demo.saleor.io/dashboard/)
 
