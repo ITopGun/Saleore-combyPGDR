@@ -12,20 +12,6 @@
   A headless, GraphQL commerce platform delivering ultra-fast, dynamic, personalized shopping experiences. Beautiful online stores, anywhere, on any device.
 </div>
 
-<br>
-
-<div align="center">
-  <a href="http://codecov.io/github/saleor/saleor?branch=master">
-    <img src="http://codecov.io/github/saleor/saleor/coverage.svg?branch=master" alt="Codecov" />
-  </a>
-  <a href="https://docs.saleor.io/">
-    <img src="https://img.shields.io/badge/docs-docs.saleor.io-brightgreen.svg" alt="Documentation" />
-  </a>
-  <a href="https://github.com/python/black">
-    <img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Code style: black">
-  </a>
-</div>
-
 ## Table of Contents
 
 - [What makes Saleor special?](#what-makes-saleor-special)
