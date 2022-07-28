@@ -56,22 +56,6 @@ Help us out… If you love free stuff and great software, give us a star! 🌟
 Note:
 The `main` branch is the development version of Saleor and it may be unstable. To use the latest stable version, download it from the [Releases](https://github.com/saleor/saleor/releases/) page or switch to a release tag.
 
-
-### Saleor Cloud
-The fastest way to develop with Saleor is by using developer accounts in [Saleor Cloud](https://cloud.saleor.io).
-
-Register [here](https://cloud.saleor.io/register) or install our [CLI tool](https://github.com/saleor/saleor-cli):
-
-`npm i -g saleor@latest`
-
-and run the following command:
-
-`saleor register`
-
-Bootstrap your first [storefront](https://github.com/saleor/react-storefront) with:
-
-`saleor storefront create --demo`
-
 ## Documentation
 
 Saleor documentation is available here: [docs.saleor.io](https://docs.saleor.io)
