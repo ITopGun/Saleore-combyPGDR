@@ -83,14 +83,6 @@ Or launch the demo on a free Heroku instance.
 
 Login credentials: `admin@example.com`/`admin`
 
-## Contributing
-
-We love your contributions and do our best to provide you with mentorship and support. If you are looking for an issue to tackle, take a look at issues labeled [`Help Wanted`](https://github.com/saleor/saleor/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22).
-
-If nothing grabs your attention, check [our roadmap](https://github.com/orgs/saleor/projects/3/views/4) or come up with your feature. Just drop us a line or [open an issue](https://github.com/saleor/saleor/issues/new) and we’ll work out how to handle it.
-
-Get more details in our [Contributing Guide](https://docs.saleor.io/docs/developer/community/contributing).
-
 ## Your feedback
 
 Do you use Saleor as an e-commerce platform?
