@@ -84,9 +84,6 @@ Or launch the demo on a free Heroku instance.
 Login credentials: `admin@example.com`/`admin`
 
 
-## License
-
-Disclaimer: Everything you see here is open and free to use as long as you comply with the [license](https://github.com/saleor/saleor/blob/master/LICENSE). There are no hidden charges. We promise to do our best to fix bugs and improve the code.
 
 #### Crafted with ❤️ by [Saleor Commerce](https://saleor.io)
 
