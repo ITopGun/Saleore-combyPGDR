@@ -1,6 +1,6 @@
 adyen==4.0.0
 amqp==5.1.1; python_version >= "3.7"
-aniso8601==7.0.0
+aniso8601==9.0.1
 anyio==3.6.1; python_version >= "3.7" and python_full_version >= "3.6.2"
 asgiref==3.5.2; python_version >= "3.7"
 async-timeout==4.0.2; python_version >= "3.7"
