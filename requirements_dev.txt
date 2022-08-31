@@ -15,7 +15,7 @@ azure-storage-blob==12.13.1; python_version >= "3.6"
 azure-storage-common==2.1.0
 babel==2.10.3; python_version >= "3.6"
 bcrypt==4.0.0; python_version >= "3.7" and python_version < "4.0"
-beautifulsoup4==4.7.1
+beautifulsoup4==4.11.1
 beautifultable==0.7.0
 before-after==1.0.1
 billiard==3.6.4.0; python_version >= "3.7"
