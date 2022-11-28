@@ -6,7 +6,6 @@ from django.template.defaultfilters import pluralize
 
 from ....core.exceptions import InsufficientStock
 from ....core.permissions import OrderPermissions
-from ....core.tracing import traced_atomic_transaction
 from ....order import models as order_models
 from ....order.actions import create_fulfillments
 from ....order.error_codes import OrderErrorCode
@@ -16,7 +15,7 @@ from ...core.mutations import BaseMutation
 from ...core.types import NonNullList, OrderError
 from ...core.utils import get_duplicated_values
 from ...plugins.dataloaders import load_plugin_manager
-from ...site.dataloaders import load_site
+from ...site.dataloaders import get_site_promise
 from ...warehouse.types import Warehouse
 from ..types import Fulfillment, Order, OrderLine
 from ..utils import prepare_insufficient_stock_order_validation_errors
@@ -232,7 +231,6 @@ class OrderFulfill(BaseMutation):
         return data
 
     @classmethod
-    @traced_atomic_transaction()
     def perform_mutation(cls, _root, info, order, **data):
         order = cls.get_node_or_error(
             info,
@@ -242,11 +240,11 @@ class OrderFulfill(BaseMutation):
             qs=order_models.Order.objects.prefetch_related("lines__variant"),
         )
         data = data.get("input")
-        site = load_site(info.context)
+        site = get_site_promise(info.context).get()
         cleaned_input = cls.clean_input(info, order, data, site=site)
 
         context = info.context
-        user = context.user if not context.user.is_anonymous else None
+        user = context.user
         app = load_app(info.context)
         manager = load_plugin_manager(info.context)
         lines_for_warehouses = cleaned_input["lines_for_warehouses"]

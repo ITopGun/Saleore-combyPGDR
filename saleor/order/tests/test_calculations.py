@@ -7,9 +7,9 @@ from prices import Money, TaxedMoney
 
 from ...core.prices import quantize_price
 from ...core.taxes import TaxData, TaxError, TaxLineData, zero_taxed_money
-from ...plugins.manager import get_plugins_manager
+from ...tax import TaxCalculationStrategy
+from ...tax.calculations.order import update_order_prices_with_flat_rates
 from .. import OrderStatus, calculations
-from ..base_calculations import base_order_shipping
 from ..interface import OrderTaxedPricesData
 
 
@@ -124,22 +124,6 @@ def test_recalculate_order_prices(order_with_lines, order_lines, tax_data):
         assert line.total_price == line_total.price_with_discounts
         assert line.undiscounted_total_price == line_total.undiscounted_price
         assert tax_rate == line.tax_rate
-
-
-@patch("saleor.plugins.manager.PluginsManager.update_taxes_for_order_lines")
-def test_recalculate_order_prices_calls_update_taxes_for_order_lines(
-    mocked_update_taxes_for_order_lines, order_with_lines, order_lines
-):
-    # given
-    order = order_with_lines
-    manager = get_plugins_manager()
-    lines = list(order_lines)
-
-    # when
-    calculations._recalculate_order_prices(manager, order, lines)
-
-    # then
-    mocked_update_taxes_for_order_lines.assert_called_once_with(order, lines)
 
 
 @pytest.mark.parametrize(
@@ -483,6 +467,38 @@ def test_fetch_order_prices_if_expired_plugins(
         assert order_line.tax_rate == tax_line.tax_rate
 
 
+@patch(
+    "saleor.order.calculations.update_order_prices_with_flat_rates",
+    wraps=update_order_prices_with_flat_rates,
+)
+@pytest.mark.parametrize("prices_entered_with_tax", [True, False])
+def test_fetch_order_prices_if_expired_flat_rates(
+    mocked_update_order_prices_with_flat_rates,
+    order_with_lines,
+    fetch_kwargs,
+    prices_entered_with_tax,
+):
+    # given
+    order = order_with_lines
+    tc = order.channel.tax_configuration
+    tc.country_exceptions.all().delete()
+    tc.prices_entered_with_tax = prices_entered_with_tax
+    tc.tax_calculation_strategy = TaxCalculationStrategy.FLAT_RATES
+    tc.save()
+
+    # when
+    calculations.fetch_order_prices_if_expired(**fetch_kwargs)
+    order.refresh_from_db()
+    line = order.lines.first()
+
+    # then
+    mocked_update_order_prices_with_flat_rates.assert_called_once_with(
+        order, list(order.lines.all()), prices_entered_with_tax
+    )
+    assert line.tax_rate == Decimal("0.2300")
+    assert order.shipping_tax_rate == Decimal("0.2300")
+
+
 def test_fetch_order_prices_if_expired_webhooks_success(
     plugins_manager,
     fetch_kwargs,
@@ -612,7 +628,7 @@ def test_fetch_order_prices_when_tax_exemption_and_include_taxes_in_prices(
 
 
 def test_fetch_order_prices_when_tax_exemption_and_not_include_taxes_in_prices(
-    plugins_manager, fetch_kwargs, order_with_lines, tax_data, site_settings
+    plugins_manager, fetch_kwargs, order_with_lines, tax_data
 ):
     """Test tax exemption when taxes are not included in prices.
 
@@ -620,6 +636,12 @@ def test_fetch_order_prices_when_tax_exemption_and_not_include_taxes_in_prices(
     tax plugins should be ignored and only net prices should be calculated and returned.
     """
     # given
+
+    tc = order_with_lines.channel.tax_configuration
+    tc.prices_entered_with_tax = False
+    tc.save(update_fields=["prices_entered_with_tax"])
+    tc.country_exceptions.all().delete()
+
     currency = order_with_lines.currency
     discount_amount = Decimal("3.00")
     discount_as_money = Money(discount_amount, currency)
@@ -635,9 +657,6 @@ def test_fetch_order_prices_when_tax_exemption_and_not_include_taxes_in_prices(
     order_with_lines.tax_exemption = True
     order_with_lines.save()
 
-    site_settings.include_taxes_in_prices = False
-    site_settings.save(update_fields=["include_taxes_in_prices"])
-
     plugins_manager.get_taxes_for_order = Mock(return_value=tax_data)
 
     # when
@@ -648,7 +667,7 @@ def test_fetch_order_prices_when_tax_exemption_and_not_include_taxes_in_prices(
 
     subtotal = zero_taxed_money(currency)
     undiscounted_subtotal = zero_taxed_money(currency)
-    shipping_price = base_order_shipping(order_with_lines)
+    shipping_price = order_with_lines.base_shipping_price
     shipping_price = quantize_price(
         TaxedMoney(
             shipping_price,
@@ -720,6 +739,31 @@ def test_fetch_order_prices_if_expired_prefetch_with_lines(
 
     # then
     assert all(line._state.fields_cache for line in order_lines)
+
+
+def test_fetch_order_prices_if_expired_use_base_shipping_price(
+    plugins_manager, fetch_kwargs, order_with_lines
+):
+    # given
+    order = order_with_lines
+    currency = order.currency
+    shipping_channel_listing = order.shipping_method.channel_listings.get(
+        channel=order.channel
+    )
+    expected_price = Money("2.00", currency)
+    order.base_shipping_price = expected_price
+    order.save()
+
+    # when
+    calculations.fetch_order_prices_if_expired(**fetch_kwargs)
+
+    # then
+    order_with_lines.refresh_from_db()
+    assert order_with_lines.base_shipping_price != shipping_channel_listing.price
+    assert order_with_lines.base_shipping_price == expected_price
+    assert order_with_lines.shipping_price == TaxedMoney(
+        net=expected_price, gross=expected_price
+    )
 
 
 @patch("saleor.order.calculations.fetch_order_prices_if_expired")
@@ -836,6 +880,34 @@ def test_order_total(mocked_fetch_order_prices_if_expired):
 
     # then
     assert total == quantize_price(expected_total, order.currency)
+
+
+@patch("saleor.order.calculations.fetch_order_prices_if_expired")
+def test_order_subtotal(mocked_fetch_order_prices_if_expired):
+    # given
+    currency = "USD"
+    manager = Mock()
+    expected_line_totals = [
+        TaxedMoney(Money(Decimal("1.00"), currency), Money(Decimal("1.00"), currency)),
+        TaxedMoney(Money(Decimal("2.00"), currency), Money(Decimal("2.00"), currency)),
+        TaxedMoney(Money(Decimal("4.00"), currency), Money(Decimal("4.00"), currency)),
+    ]
+    order = Mock(currency=currency)
+    lines = []
+    for expected_line_total in expected_line_totals:
+        line = Mock(total_price=expected_line_total, currency=currency)
+        lines.append(line)
+    mocked_fetch_order_prices_if_expired.return_value = (order, lines)
+
+    # when
+    subtotal = calculations.order_subtotal(order, manager, lines)
+
+    # then
+    expected_subtotal = quantize_price(
+        TaxedMoney(Money(Decimal("7.00"), currency), Money(Decimal("7.00"), currency)),
+        currency,
+    )
+    assert subtotal == expected_subtotal
 
 
 @patch("saleor.order.calculations.fetch_order_prices_if_expired")

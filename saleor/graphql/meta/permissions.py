@@ -49,7 +49,7 @@ def public_user_permissions(info, user_pk: int) -> List[BasePermissionEnum]:
                 )
             }
         )
-    if info.context.user.pk == user.pk:
+    if info.context.user and info.context.user.pk == user.pk:
         return []
     if user.is_staff:
         return [AccountPermissions.MANAGE_STAFF]
@@ -135,7 +135,7 @@ def discount_permissions(_info, _object_pk: Any) -> List[BasePermissionEnum]:
 def public_payment_permissions(info, payment_pk: int) -> List[BasePermissionEnum]:
     context_user = info.context.user
     app = load_app(info.context)
-    if app is not None or context_user.is_staff:
+    if app or (context_user and context_user.is_staff):
         return [PaymentPermissions.HANDLE_PAYMENTS]
     if payment_owned_by_user(payment_pk, context_user):
         return []
@@ -151,6 +151,13 @@ def private_payment_permissions(info, _object_pk: Any) -> List[BasePermissionEnu
 
 def gift_card_permissions(_info, _object_pk: Any) -> List[BasePermissionEnum]:
     return [GiftcardPermissions.MANAGE_GIFT_CARD]
+
+
+def tax_permissions(_info, _object_pk: int) -> List[BasePermissionEnum]:
+    return [
+        CheckoutPermissions.HANDLE_TAXES,
+        CheckoutPermissions.MANAGE_TAXES,
+    ]
 
 
 PUBLIC_META_PERMISSION_MAP = {
@@ -178,6 +185,8 @@ PUBLIC_META_PERMISSION_MAP = {
     "Sale": discount_permissions,
     "ShippingMethodType": shipping_permissions,
     "ShippingZone": shipping_permissions,
+    "TaxConfiguration": tax_permissions,
+    "TaxClass": tax_permissions,
     "User": public_user_permissions,
     "Voucher": discount_permissions,
     "Warehouse": product_permissions,
@@ -210,6 +219,8 @@ PRIVATE_META_PERMISSION_MAP = {
     "ShippingMethod": shipping_permissions,
     "ShippingMethodType": shipping_permissions,
     "ShippingZone": shipping_permissions,
+    "TaxConfiguration": tax_permissions,
+    "TaxClass": tax_permissions,
     "User": private_user_permissions,
     "Voucher": discount_permissions,
     "Warehouse": product_permissions,

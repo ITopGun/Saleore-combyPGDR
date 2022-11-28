@@ -1,8 +1,6 @@
 import logging
 from decimal import Decimal
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Union
-
-from django.contrib.auth.models import AnonymousUser
+from typing import TYPE_CHECKING, Callable, List, Optional
 
 from ..account.models import User
 from ..app.models import App
@@ -33,7 +31,6 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
-    # flake8: noqa
     from ..plugins.manager import PluginsManager
 
 UserType = Optional[User]

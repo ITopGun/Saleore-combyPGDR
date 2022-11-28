@@ -1,7 +1,7 @@
 import graphene
 from graphene import relay
 
-from ...core.permissions import ShippingPermissions
+from ...core.permissions import CheckoutPermissions, ShippingPermissions
 from ...core.tracing import traced_resolver
 from ...core.weight import convert_weight_to_default_weight_unit
 from ...product import models as product_models
@@ -35,6 +35,8 @@ from ..core.types import (
 )
 from ..meta.types import ObjectWithMetadata
 from ..shipping.resolvers import resolve_price_range, resolve_shipping_translation
+from ..tax.dataloaders import TaxClassByIdLoader
+from ..tax.types import TaxClass
 from ..translations.fields import TranslationField
 from ..translations.types import ShippingMethodTranslation
 from ..warehouse.types import Warehouse
@@ -64,6 +66,13 @@ class ShippingMethodChannelListing(ModelObjectType):
     @staticmethod
     def resolve_channel(root: models.ShippingMethodChannelListing, info):
         return ChannelByIdLoader(info.context).load(root.channel_id)
+
+    @staticmethod
+    def resolve_minimum_order_price(root: models.ShippingMethodChannelListing, info):
+        if root.minimum_order_price_amount is None:
+            return None
+        else:
+            return root.minimum_order_price
 
 
 class ShippingMethodPostalCodeRule(ModelObjectType):
@@ -130,6 +139,15 @@ class ShippingMethodType(ChannelContextTypeWithMetadataForObjectType):
     )
     minimum_delivery_days = graphene.Int(
         description="Minimal number of days for delivery."
+    )
+    tax_class = PermissionsField(
+        TaxClass,
+        description="Tax class assigned to this shipping method.",
+        required=False,
+        permissions=[
+            CheckoutPermissions.MANAGE_TAXES,
+            ShippingPermissions.MANAGE_SHIPPING,
+        ],
     )
 
     class Meta:
@@ -215,6 +233,14 @@ class ShippingMethodType(ChannelContextTypeWithMetadataForObjectType):
             )
 
         return create_connection_slice(qs, info, kwargs, ProductCountableConnection)
+
+    @staticmethod
+    def resolve_tax_class(root: ChannelContext[models.ShippingMethod], info):
+        return (
+            TaxClassByIdLoader(info.context).load(root.node.tax_class_id)
+            if root.node.tax_class_id
+            else None
+        )
 
 
 class ShippingZone(ChannelContextTypeWithMetadata, ModelObjectType):
