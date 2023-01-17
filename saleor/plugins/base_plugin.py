@@ -18,12 +18,13 @@ from django.core.handlers.wsgi import WSGIRequest
 from django.http import HttpResponse
 from django.utils.functional import SimpleLazyObject
 from graphene import Mutation
-from graphql import GraphQLError, ResolveInfo
+from graphql import GraphQLError
 from graphql.execution import ExecutionResult
 from prices import TaxedMoney
 from promise.promise import Promise
 
 from ..core.models import EventDelivery
+from ..graphql.core import ResolveInfo
 from ..payment.interface import (
     CustomerSource,
     GatewayResponse,
@@ -113,6 +114,7 @@ class BasePlugin:
     PLUGIN_ID = ""
     PLUGIN_DESCRIPTION = ""
     CONFIG_STRUCTURE = None
+
     CONFIGURATION_PER_CHANNEL = True
     DEFAULT_CONFIGURATION = []
     DEFAULT_ACTIVE = False
@@ -587,7 +589,9 @@ class BasePlugin:
     # status is changed.
     gift_card_status_changed: Callable[["GiftCard", None], None]
 
-    initialize_payment: Callable[[dict], InitializedPaymentResponse]
+    initialize_payment: Callable[
+        [dict, Optional[InitializedPaymentResponse]], InitializedPaymentResponse
+    ]
 
     # Trigger before invoice is deleted.
     #
@@ -991,12 +995,12 @@ class BasePlugin:
         self, currency: Optional[str], checkout: Optional["Checkout"], previous_value
     ) -> List["PaymentGateway"]:
         payment_config = (
-            self.get_payment_config(previous_value)  # type: ignore
+            self.get_payment_config(previous_value)
             if hasattr(self, "get_payment_config")
             else []
         )
         currencies = (
-            self.get_supported_currencies(previous_value=[])  # type: ignore
+            self.get_supported_currencies([])
             if hasattr(self, "get_supported_currencies")
             else []
         )
@@ -1098,12 +1102,12 @@ class BasePlugin:
 
         cls.validate_plugin_configuration(plugin_configuration)
         cls.pre_save_plugin_configuration(plugin_configuration)
+        plugin_configuration.save()
 
         if plugin_configuration.configuration:
             # Let's add a translated descriptions and labels
             cls._append_config_structure(plugin_configuration.configuration)
 
-        plugin_configuration.save()
         return plugin_configuration
 
     @classmethod
