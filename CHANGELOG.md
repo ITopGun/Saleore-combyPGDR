@@ -2,7 +2,52 @@
 
 All notable, unreleased changes to this project will be documented in this file. For the released changes, please visit the [Releases](https://github.com/mirumee/saleor/releases) page.
 
-# 3.9.0 [Unreleased]
+# 3.11.0 [Unreleased]
+
+### Breaking changes
+
+### GraphQL API
+
+- Add `webhookDryRun` mutation - #11548 by @zedzior
+- Fix adding invalid label to meta fields - #11718 by @IKarbowiak
+- Add filter by `checkoutToken` to `Query.orders`. - #11689 by @kadewu
+
+### Other changes
+
+# 3.10.0 [Unreleased]
+
+### Breaking changes
+
+### GraphQL API
+
+- Add ability to filter and sort products of a category - #10917 by @yemeksepeti-cihankarluk, @ogunheper
+  - Add `filter` argument to `Category.products`
+  - Add `sortBy` argument to `Category.products`
+- Extend invoice object types with `Order` references - #11505 by @przlada
+  - Add `Invoice.order` field
+  - Add `InvoiceRequested.order`, `InvoiceDeleted.order` and `InvoiceSent.order` fields
+- Add support for metadata for `Address` model - #11701 by @IKarbowiak
+- Allow to mutate objects, by newly added `externalReference` field, instead of Saleor-assigned ID. Apply to following models: #11410 by @zedzior
+  - `Product`
+  - `ProductVariant`
+  - `Attribute`
+  - `AttributeValue`
+  - `Order`
+  - `User`
+  - `Warehouse`
+
+### Other changes
+
+- Fix fetching the `checkout.availableCollectionPoints` - #11489 by @IKarbowiak
+- Move checkout metadata to separate model - #11264 by @jakubkuc
+- Add ability to set a custom Celery queue for async webhook - #11511 by @NyanKiyoshi
+- Remove `CUSTOMER_UPDATED` webhook trigger from address mutations - #11395 by @jakubkuc
+- Drop `Django.Auth` - #11305 by @fowczarek
+- Propagate voucher discount between checkout lines when charge_taxes is disabled - #11632 by @maarcingebala
+- Fix stock events triggers - #11714 by @jakubkuc
+- Accept the gift card code provided in the input - by @mociepka
+
+# 3.9.0
 
 ### Highlights
 
@@ -25,6 +70,10 @@ All notable, unreleased changes to this project will be documented in this file.
 ### GraphQL API
 
 - Add `attribute` field to `AttributeValueTranslatableContent` type. #11028 by @zedzior
+- Add new properties in the `Product` type - #10537 by @kadewu
+  - Add new fields: `Product.attribute`, `Product.variant`
+  - Add `sortBy` argument to `Product.media`
+- Allow assigning attribute value using its ID. Add to `AttributeValueInput` dedicated field for each input type. #11206 by @zedzior
 
 ### Other changes
 
@@ -33,6 +82,11 @@ All notable, unreleased changes to this project will be documented in this file.
 - Bump cryptography to 38.0.3: use OpenSSL 3.0.7 - #11126 by @NyanKiyoshi
 - Add exif image validation - #11224 by @IKarbowiak
 - Include fully qualified API URL `Saleor-Api-Url` in communication with Apps. #11223 by @przlada
+- Add metadata on order line payload notifications. #10954 by @CarlesLopezMagem
+- Make email authentication case-insensitive. #11284 by @zedzior
+- Fix the observability reporter to obfuscate URLs. #11282 by @przlada
+- Add HTTP headers filtering to observability reporter. #11285 by @przlada
+- Deactivate Webhook before deleting and handle IntegrityErrors - #11239 @jakubkuc
 
 # 3.8.0
 
@@ -74,7 +128,6 @@ All notable, unreleased changes to this project will be documented in this file.
 - GraphQL view no longer generates error logs when the HTTP request doesn't contain a GraphQL query - #10901 by @NyanKiyoshi
 - Add `iss` field to JWT tokens - #10842 by @korycins
 - Drop `py` and `tox` dependencies from dev requirements - #11054 by @NyanKiyoshi
-
 
 ### Saleor Apps
 
@@ -236,6 +289,7 @@ All notable, unreleased changes to this project will be documented in this file.
 - Expose manifest in the `App` type (#10055) (f0f944066)
 - Deprecate `configurationUrl` and `dataPrivacy` fields in apps (#10046) (68bd7c8a2)
 - Fix `ProductVariant.created` resolver (#10072) (6c77053a9)
+- Add `schemaVersion` field to `Shop` type. #11275 by @zedzior
 
 ### Saleor Apps
 
