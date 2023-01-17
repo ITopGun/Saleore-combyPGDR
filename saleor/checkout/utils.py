@@ -18,10 +18,7 @@ from ..core.utils.promo_code import (
 from ..discount import DiscountInfo, VoucherType
 from ..discount.interface import VoucherInfo, fetch_voucher_info
 from ..discount.models import NotApplicable, Voucher
-from ..discount.utils import (
-    get_products_voucher_discount,
-    validate_voucher_for_checkout,
-)
+from ..discount.utils import validate_voucher_for_checkout
 from ..giftcard.utils import (
     add_gift_card_code_to_checkout,
     remove_gift_card_code_from_checkout,
@@ -43,13 +40,9 @@ from .fetch import (
 from .models import Checkout, CheckoutLine
 
 if TYPE_CHECKING:
-    # flake8: noqa
     from decimal import Decimal
 
-    from prices import TaxedMoney
-
     from ..account.models import Address
-    from ..channel.models import Channel
     from ..order.models import Order
     from .fetch import CheckoutInfo, CheckoutLineInfo
 
@@ -237,13 +230,17 @@ def add_variants_to_checkout(
 
     if reservation_length and to_reserve:
         updated_lines_ids = [line.pk for line in to_reserve + to_delete]
+
+        # Validation for stock reservation should be performed on new and updated lines.
+        # For already existing lines only reserved_until should be updated.
+        lines_to_update_reservation_time = []
         for line in checkout_lines:
             if line.pk not in updated_lines_ids:
-                to_reserve.append(line)
-                variants.append(line.variant)
+                lines_to_update_reservation_time.append(line)
 
         reserve_stocks_and_preorders(
             to_reserve,
+            lines_to_update_reservation_time,
             variants,
             country_code,
             channel,
@@ -396,7 +393,7 @@ def _get_shipping_voucher_discount_for_checkout(
             msg = "This offer is not valid in your country."
             raise NotApplicable(msg)
 
-    shipping_price = base_calculations.base_checkout_delivery_price(
+    shipping_price = base_calculations.base_checkout_undiscounted_delivery_price(
         checkout_info=checkout_info, lines=lines
     )
     return voucher.get_discount_amount_for(shipping_price, checkout_info.channel)

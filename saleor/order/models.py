@@ -183,7 +183,7 @@ class Order(ModelWithMetadata):
     shipping_price_net_amount = models.DecimalField(
         max_digits=settings.DEFAULT_MAX_DIGITS,
         decimal_places=settings.DEFAULT_DECIMAL_PLACES,
-        default=0,
+        default=Decimal("0.0"),
         editable=False,
     )
     shipping_price_net = MoneyField(
@@ -193,7 +193,7 @@ class Order(ModelWithMetadata):
     shipping_price_gross_amount = models.DecimalField(
         max_digits=settings.DEFAULT_MAX_DIGITS,
         decimal_places=settings.DEFAULT_DECIMAL_PLACES,
-        default=0,
+        default=Decimal("0.0"),
         editable=False,
     )
     shipping_price_gross = MoneyField(
@@ -205,8 +205,29 @@ class Order(ModelWithMetadata):
         gross_amount_field="shipping_price_gross_amount",
         currency_field="currency",
     )
+    base_shipping_price_amount = models.DecimalField(
+        max_digits=settings.DEFAULT_MAX_DIGITS,
+        decimal_places=settings.DEFAULT_DECIMAL_PLACES,
+        default=Decimal("0.0"),
+    )
+    base_shipping_price = MoneyField(
+        amount_field="base_shipping_price_amount", currency_field="currency"
+    )
     shipping_tax_rate = models.DecimalField(
-        max_digits=5, decimal_places=4, default=Decimal("0.0")
+        max_digits=5, decimal_places=4, blank=True, null=True
+    )
+    shipping_tax_class = models.ForeignKey(
+        "tax.TaxClass",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+    )
+    shipping_tax_class_name = models.CharField(max_length=255, blank=True, null=True)
+    shipping_tax_class_private_metadata = JSONField(
+        blank=True, null=True, default=dict, encoder=CustomJsonEncoder
+    )
+    shipping_tax_class_metadata = JSONField(
+        blank=True, null=True, default=dict, encoder=CustomJsonEncoder
     )
 
     # Token of a checkout instance that this order was created from
@@ -215,12 +236,12 @@ class Order(ModelWithMetadata):
     total_net_amount = models.DecimalField(
         max_digits=settings.DEFAULT_MAX_DIGITS,
         decimal_places=settings.DEFAULT_DECIMAL_PLACES,
-        default=0,
+        default=Decimal("0.0"),
     )
     undiscounted_total_net_amount = models.DecimalField(
         max_digits=settings.DEFAULT_MAX_DIGITS,
         decimal_places=settings.DEFAULT_DECIMAL_PLACES,
-        default=0,
+        default=Decimal("0.0"),
     )
 
     total_net = MoneyField(amount_field="total_net_amount", currency_field="currency")
@@ -231,12 +252,12 @@ class Order(ModelWithMetadata):
     total_gross_amount = models.DecimalField(
         max_digits=settings.DEFAULT_MAX_DIGITS,
         decimal_places=settings.DEFAULT_DECIMAL_PLACES,
-        default=0,
+        default=Decimal("0.0"),
     )
     undiscounted_total_gross_amount = models.DecimalField(
         max_digits=settings.DEFAULT_MAX_DIGITS,
         decimal_places=settings.DEFAULT_DECIMAL_PLACES,
-        default=0,
+        default=Decimal("0.0"),
     )
 
     total_gross = MoneyField(
@@ -260,12 +281,12 @@ class Order(ModelWithMetadata):
     total_charged_amount = models.DecimalField(
         max_digits=settings.DEFAULT_MAX_DIGITS,
         decimal_places=settings.DEFAULT_DECIMAL_PLACES,
-        default=0,
+        default=Decimal("0.0"),
     )
     total_authorized_amount = models.DecimalField(
         max_digits=settings.DEFAULT_MAX_DIGITS,
         decimal_places=settings.DEFAULT_DECIMAL_PLACES,
-        default=0,
+        default=Decimal("0.0"),
     )
     total_authorized = MoneyField(
         amount_field="total_authorized_amount", currency_field="currency"
@@ -278,7 +299,6 @@ class Order(ModelWithMetadata):
         Voucher, blank=True, null=True, related_name="+", on_delete=models.SET_NULL
     )
     gift_cards = models.ManyToManyField(GiftCard, blank=True, related_name="orders")
-
     display_gross_prices = models.BooleanField(default=True)
     customer_note = models.TextField(blank=True, default="")
     weight = MeasurementField(
@@ -489,7 +509,7 @@ class OrderLine(ModelWithMetadata):
     unit_discount_amount = models.DecimalField(
         max_digits=settings.DEFAULT_MAX_DIGITS,
         decimal_places=settings.DEFAULT_DECIMAL_PLACES,
-        default=0,
+        default=Decimal("0.0"),
     )
     unit_discount = MoneyField(
         amount_field="unit_discount_amount", currency_field="currency"
@@ -556,12 +576,12 @@ class OrderLine(ModelWithMetadata):
     undiscounted_unit_price_gross_amount = models.DecimalField(
         max_digits=settings.DEFAULT_MAX_DIGITS,
         decimal_places=settings.DEFAULT_DECIMAL_PLACES,
-        default=0,
+        default=Decimal("0.0"),
     )
     undiscounted_unit_price_net_amount = models.DecimalField(
         max_digits=settings.DEFAULT_MAX_DIGITS,
         decimal_places=settings.DEFAULT_DECIMAL_PLACES,
-        default=0,
+        default=Decimal("0.0"),
     )
     undiscounted_unit_price = TaxedMoneyField(
         net_amount_field="undiscounted_unit_price_net_amount",
@@ -572,12 +592,12 @@ class OrderLine(ModelWithMetadata):
     undiscounted_total_price_gross_amount = models.DecimalField(
         max_digits=settings.DEFAULT_MAX_DIGITS,
         decimal_places=settings.DEFAULT_DECIMAL_PLACES,
-        default=0,
+        default=Decimal("0.0"),
     )
     undiscounted_total_price_net_amount = models.DecimalField(
         max_digits=settings.DEFAULT_MAX_DIGITS,
         decimal_places=settings.DEFAULT_DECIMAL_PLACES,
-        default=0,
+        default=Decimal("0.0"),
     )
     undiscounted_total_price = TaxedMoneyField(
         net_amount_field="undiscounted_total_price_net_amount",
@@ -588,7 +608,7 @@ class OrderLine(ModelWithMetadata):
     base_unit_price_amount = models.DecimalField(
         max_digits=settings.DEFAULT_MAX_DIGITS,
         decimal_places=settings.DEFAULT_DECIMAL_PLACES,
-        default=0,
+        default=Decimal("0.0"),
     )
     base_unit_price = MoneyField(
         amount_field="base_unit_price_amount", currency_field="currency"
@@ -597,14 +617,27 @@ class OrderLine(ModelWithMetadata):
     undiscounted_base_unit_price_amount = models.DecimalField(
         max_digits=settings.DEFAULT_MAX_DIGITS,
         decimal_places=settings.DEFAULT_DECIMAL_PLACES,
-        default=0,
+        default=Decimal("0.0"),
     )
     undiscounted_base_unit_price = MoneyField(
         amount_field="undiscounted_base_unit_price_amount", currency_field="currency"
     )
 
     tax_rate = models.DecimalField(
-        max_digits=5, decimal_places=4, default=Decimal("0.0")
+        max_digits=5, decimal_places=4, blank=True, null=True
+    )
+    tax_class = models.ForeignKey(
+        "tax.TaxClass",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+    )
+    tax_class_name = models.CharField(max_length=255, blank=True, null=True)
+    tax_class_private_metadata = JSONField(
+        blank=True, null=True, default=dict, encoder=CustomJsonEncoder
+    )
+    tax_class_metadata = JSONField(
+        blank=True, null=True, default=dict, encoder=CustomJsonEncoder
     )
 
     # Fulfilled when voucher code was used for product in the line
@@ -688,7 +721,7 @@ class Fulfillment(ModelWithMetadata):
 
     @property
     def composed_id(self):
-        return "%s-%s" % (self.order.number, self.fulfillment_order)
+        return f"{self.order.number}-{self.fulfillment_order}"
 
     def can_edit(self):
         return self.status != FulfillmentStatus.CANCELED

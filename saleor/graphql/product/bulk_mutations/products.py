@@ -29,8 +29,10 @@ from ....product.utils.variants import generate_and_set_variant_name
 from ....warehouse import models as warehouse_models
 from ....warehouse.error_codes import StockErrorCode
 from ...app.dataloaders import load_app
+from ...attribute.utils import AttributeAssignmentMixin
 from ...channel import ChannelContext
 from ...channel.types import Channel
+from ...core.descriptions import ADDED_IN_38
 from ...core.mutations import BaseMutation, ModelBulkDeleteMutation, ModelMutation
 from ...core.types import (
     BulkProductError,
@@ -41,18 +43,20 @@ from ...core.types import (
     StockError,
 )
 from ...core.utils import get_duplicated_values
-from ...core.validators import validate_price_precision
+from ...core.validators import (
+    validate_one_of_args_is_in_mutation,
+    validate_price_precision,
+)
 from ...plugins.dataloaders import load_plugin_manager
 from ...warehouse.dataloaders import (
     StocksWithAvailableQuantityByProductVariantIdCountryCodeAndChannelLoader,
 )
 from ...warehouse.types import Warehouse
 from ..mutations.channels import ProductVariantChannelListingAddInput
-from ..mutations.products import (
-    AttributeAssignmentMixin,
+from ..mutations.product.product_create import StockInput
+from ..mutations.product_variant.product_variant_create import (
     ProductVariantCreate,
     ProductVariantInput,
-    StockInput,
 )
 from ..types import (
     Category,
@@ -371,7 +375,7 @@ class ProductVariantBulkCreate(BaseMutation):
             )
         )
         for channel_listing_data in channels_data:
-            if not channel_listing_data["channel"].id in channels_assigned_to_product:
+            if channel_listing_data["channel"].id not in channels_assigned_to_product:
                 channels_not_assigned_to_product.append(
                     channel_listing_data["channel_id"]
                 )
@@ -469,14 +473,15 @@ class ProductVariantBulkCreate(BaseMutation):
         sku_list = []
         used_attribute_values = get_used_variants_attribute_values(product)
         for index, variant_data in enumerate(variants):
-            try:
-                cls.validate_duplicated_attribute_values(
-                    variant_data.attributes, used_attribute_values
-                )
-            except ValidationError as exc:
-                errors["attributes"].append(
-                    ValidationError(exc.message, exc.code, params={"index": index})
-                )
+            if variant_data.attributes:
+                try:
+                    cls.validate_duplicated_attribute_values(
+                        variant_data.attributes, used_attribute_values
+                    )
+                except ValidationError as exc:
+                    errors["attributes"].append(
+                        ValidationError(exc.message, exc.code, params={"index": index})
+                    )
 
             variant_data["product_type"] = product.product_type
             variant_data["product"] = product
@@ -546,7 +551,7 @@ class ProductVariantBulkCreate(BaseMutation):
     @classmethod
     @traced_atomic_transaction()
     def perform_mutation(cls, _root, info, **data):
-        product = cls.get_node_or_error(info, data["product_id"], models.Product)
+        product = cls.get_node_or_error(info, data["product_id"], only_type="Product")
         errors = defaultdict(list)
 
         cleaned_inputs = cls.clean_variants(info, data["variants"], product, errors)
@@ -579,8 +584,13 @@ class ProductVariantBulkDelete(ModelBulkDeleteMutation):
     class Arguments:
         ids = NonNullList(
             graphene.ID,
-            required=True,
+            required=False,
             description="List of product variant IDs to delete.",
+        )
+        skus = NonNullList(
+            graphene.String,
+            required=False,
+            description="List of product variant SKUs to delete." + ADDED_IN_38,
         )
 
     class Meta:
@@ -593,11 +603,19 @@ class ProductVariantBulkDelete(ModelBulkDeleteMutation):
 
     @classmethod
     @traced_atomic_transaction()
-    def perform_mutation(cls, _root, info, ids, **data):
-        try:
-            pks = cls.get_global_ids_or_error(ids, ProductVariant)
-        except ValidationError as error:
-            return 0, error
+    def perform_mutation(cls, _root, info, ids=None, skus=None, **data):
+        validate_one_of_args_is_in_mutation(ProductErrorCode, "skus", skus, "ids", ids)
+
+        if ids:
+            try:
+                pks = cls.get_global_ids_or_error(ids, ProductVariant)
+            except ValidationError as error:
+                return 0, error
+        if skus:
+            pks = models.ProductVariant.objects.filter(sku__in=skus).values_list(
+                "pk", flat=True
+            )
+            ids = [graphene.Node.to_global_id("ProductVariant", pk) for pk in pks]
 
         draft_order_lines_data = get_draft_order_lines_data_for_variants(pks)
 
@@ -798,13 +816,45 @@ class ProductVariantStocksUpdate(ProductVariantStocksCreate):
         error_type_class = BulkStockError
         error_type_field = "bulk_stock_errors"
 
+    class Arguments:
+        variant_id = graphene.ID(
+            required=False,
+            description="ID of a product variant for which stocks will be updated.",
+        )
+        sku = graphene.String(
+            required=False,
+            description="SKU of product variant for which stocks will be updated.",
+        )
+        stocks = NonNullList(
+            StockInput,
+            required=True,
+            description="Input list of stocks to create or update.",
+        )
+
     @classmethod
     def perform_mutation(cls, _root, info, **data):
         errors = defaultdict(list)
         stocks = data["stocks"]
-        variant = cls.get_node_or_error(
-            info, data["variant_id"], only_type=ProductVariant
+        sku = data.get("sku")
+        variant_id = data.get("variant_id")
+
+        validate_one_of_args_is_in_mutation(
+            ProductErrorCode, "sku", sku, "variant_id", variant_id
         )
+
+        if variant_id:
+            variant = cls.get_node_or_error(info, variant_id, only_type=ProductVariant)
+        if sku:
+            variant = models.ProductVariant.objects.filter(sku=sku).first()
+            if not variant:
+                raise ValidationError(
+                    {
+                        "sku": ValidationError(
+                            f"Couldn't resolve to a node: {sku}", code="not_found"
+                        )
+                    }
+                )
+
         if stocks:
             warehouse_ids = [stock["warehouse"] for stock in stocks]
             cls.check_for_duplicates(warehouse_ids, errors)
@@ -857,10 +907,16 @@ class ProductVariantStocksDelete(BaseMutation):
 
     class Arguments:
         variant_id = graphene.ID(
-            required=True,
+            required=False,
             description="ID of product variant for which stocks will be deleted.",
         )
-        warehouse_ids = NonNullList(graphene.ID)
+        sku = graphene.String(
+            required=False,
+            description="SKU of product variant for which stocks will be deleted.",
+        )
+        warehouse_ids = NonNullList(
+            graphene.ID, description="Input list of warehouse IDs."
+        )
 
     class Meta:
         description = "Delete stocks from product variant."
@@ -871,10 +927,27 @@ class ProductVariantStocksDelete(BaseMutation):
     @classmethod
     @traced_atomic_transaction()
     def perform_mutation(cls, _root, info, **data):
-        manager = load_plugin_manager(info.context)
-        variant = cls.get_node_or_error(
-            info, data["variant_id"], only_type=ProductVariant
+        sku = data.get("sku")
+        variant_id = data.get("variant_id")
+        validate_one_of_args_is_in_mutation(
+            ProductErrorCode, "sku", sku, "variant_id", variant_id
         )
+
+        manager = load_plugin_manager(info.context)
+
+        if variant_id:
+            variant = cls.get_node_or_error(info, variant_id, only_type=ProductVariant)
+        if sku:
+            variant = models.ProductVariant.objects.filter(sku=sku).first()
+            if not variant:
+                raise ValidationError(
+                    {
+                        "sku": ValidationError(
+                            f"Couldn't resolve to a node: {sku}", code="not_found"
+                        )
+                    }
+                )
+
         warehouses_pks = cls.get_global_ids_or_error(
             data["warehouse_ids"], Warehouse, field="warehouse_ids"
         )

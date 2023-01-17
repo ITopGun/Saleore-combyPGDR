@@ -1,5 +1,5 @@
 import json
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 import graphene
 import pytest
@@ -49,7 +49,8 @@ def test_install_app_created_app(
     mocked_get_response.json.return_value = app_manifest
 
     monkeypatch.setattr(requests, "get", Mock(return_value=mocked_get_response))
-    monkeypatch.setattr("saleor.app.installation_utils.send_app_token", Mock())
+    mocked_post = Mock()
+    monkeypatch.setattr(requests, "post", mocked_post)
 
     app_installation.permissions.set([permission_manage_products])
 
@@ -57,8 +58,39 @@ def test_install_app_created_app(
     app, _ = install_app(app_installation, activate=True)
 
     # then
+    mocked_post.assert_called_once_with(
+        app_manifest["tokenTargetUrl"],
+        headers={
+            "Content-Type": "application/json",
+            # X- headers will be deprecated in Saleor 4.0, proper headers are without X-
+            "X-Saleor-Domain": "mirumee.com",
+            "Saleor-Domain": "mirumee.com",
+            "Saleor-Api-Url": "http://mirumee.com/graphql/",
+        },
+        json={"auth_token": ANY},
+        timeout=ANY,
+    )
     assert App.objects.get().id == app.id
     assert list(app.permissions.all()) == [permission_manage_products]
+
+
+def test_install_app_created_app_with_audience(
+    app_manifest, app_installation, monkeypatch, site_settings
+):
+    # given
+    audience = f"https://{site_settings.site.domain}.com/app-123"
+    app_manifest["audience"] = audience
+    mocked_get_response = Mock()
+    mocked_get_response.json.return_value = app_manifest
+
+    monkeypatch.setattr(requests, "get", Mock(return_value=mocked_get_response))
+    monkeypatch.setattr("saleor.app.installation_utils.send_app_token", Mock())
+
+    # when
+    app, _ = install_app(app_installation, activate=True)
+
+    # then
+    assert app.audience == audience
 
 
 @freeze_time("2022-05-12 12:00:00")
